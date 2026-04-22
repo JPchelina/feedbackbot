@@ -12,7 +12,7 @@ from telegram.ext import (
 )
 
 # --- НАСТРОЙКИ ---
-BOT_TOKEN = "YOUR_BOT_TOKEN"          # Токен от @BotFather
+BOT_TOKEN = "8060579240:AAGba-Ia-jxLqrM6j3L4vJ1q4QR1zXgYXEk"          # Токен от @BotFather
 ADMIN_GROUP_ID = -1001234567890       # ID группы администраторов (отрицательное число)
 
 logging.basicConfig(
