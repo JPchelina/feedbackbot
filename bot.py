@@ -24,36 +24,40 @@ WAITING_EMAIL = 1
 WAITING_MESSAGE = 2
 WAITING_REPLY = 3
 
+WELCOME = (
+    "👋 Привет! На связи команда Clarity Cult.\n\n"
+    "Пиши сюда, если что-то непонятно или можно сделать лучше. "
+    "Мы читаем всё и улучшаем продукт на основе этого.\n\n"
+    "Напиши, пожалуйста, email, с которым ты заходишь в платформу."
+)
+
+ASK_MESSAGE = (
+    "Опиши суть вопроса или проблемы.\n\n"
+    "Добавь скрин или ссылку — так мы быстрее разберёмся. "
+    "Можно отправить текст, ссылку, фото, видео или файл.\n\n"
+    "Чтобы отменить — напиши /cancel"
+)
+
+CONFIRMED = "✅ Приняли. Посмотрим и вернёмся с ответом в рабочее время — будние дни с 10:00 до 19:00."
+
+AGAIN_BUTTON = [[InlineKeyboardButton("✍️ Написать ещё", callback_data="write_again")]]
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 Привет! На связи команда Clarity Cult.\n\n"
-        "Пиши сюда, если что-то непонятно или можно сделать лучше. "
-        "Мы читаем всё и улучшаем продукт на основе этого.\n\n"
-        "Напиши, пожалуйста, email, с которым ты заходишь в платформу."
-    )
+    await update.message.reply_text(WELCOME)
     return WAITING_EMAIL
 
 
 async def receive_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
     email = update.message.text.strip()
-
-    # Проверка что это похоже на email
     if "@" not in email or "." not in email.split("@")[-1]:
         await update.message.reply_text(
             "Похоже, это не email 🙈\n\n"
             "Напиши, пожалуйста, email в формате example@mail.com"
         )
         return WAITING_EMAIL
-
     context.user_data["email"] = email
-
-    await update.message.reply_text(
-        "Опиши суть вопроса или проблемы.\n\n"
-        "Добавь скрин или ссылку — так мы быстрее разберёмся. "
-        "Можно отправить текст, ссылку, фото, видео или файл.\n\n"
-        "Чтобы отменить — напиши /cancel"
-    )
+    await update.message.reply_text(ASK_MESSAGE)
     return WAITING_MESSAGE
 
 
@@ -69,7 +73,6 @@ async def receive_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_info += f"\n📧 Email: {email}"
     user_info += f"\n🆔 ID: <code>{user.id}</code>"
 
-    # Если текстовое сообщение — добавляем в карточку
     if message.text:
         user_info += f"\n\n💬 <b>Сообщение:</b>\n{message.text}"
 
@@ -82,18 +85,30 @@ async def receive_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        # Если не текст (фото/видео/файл) — пересылаем отдельно
         if not message.text:
             await message.forward(chat_id=ADMIN_GROUP_ID)
 
         await message.reply_text(
-            "✅ Приняли. Посмотрим и вернёмся с ответом в рабочее время — будние дни с 10:00 до 19:00."
+            CONFIRMED,
+            reply_markup=InlineKeyboardMarkup(AGAIN_BUTTON)
         )
     except Exception as e:
         logger.error(f"Ошибка отправки: {e}")
         await message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
     return ConversationHandler.END
+
+
+async def write_again(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(CONFIRMED)
+    if context.user_data.get("email"):
+        await query.message.reply_text(ASK_MESSAGE)
+        return WAITING_MESSAGE
+    else:
+        await query.message.reply_text(WELCOME)
+        return WAITING_EMAIL
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -138,7 +153,10 @@ def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
     user_conv = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
+        entry_points=[
+            CommandHandler("start", start),
+            CallbackQueryHandler(write_again, pattern=r"^write_again$"),
+        ],
         states={
             WAITING_EMAIL: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_email)
