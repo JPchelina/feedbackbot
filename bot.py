@@ -28,16 +28,24 @@ WAITING_REPLY = 3
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Привет! На связи команда Clarity Cult.\n\n"
-        "Пиши сюда по любым вопросам или если в процессе что-то вызывает сомнения, стопор или ощущение «можно лучше». "
-        "Мы читаем всё и используем это, чтобы улучшать продукт.\n\n"
-        "Напиши, пожалуйста, email, с которым ты заходишь в платформу — "
-        "это поможет нам разобраться в контексте и быстрее помочь."
+        "Пиши сюда, если что-то непонятно или можно сделать лучше. "
+        "Мы читаем всё и улучшаем продукт на основе этого.\n\n"
+        "Напиши, пожалуйста, email, с которым ты заходишь в платформу."
     )
     return WAITING_EMAIL
 
 
 async def receive_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
     email = update.message.text.strip()
+
+    # Проверка что это похоже на email
+    if "@" not in email or "." not in email.split("@")[-1]:
+        await update.message.reply_text(
+            "Похоже, это не email 🙈\n\n"
+            "Напиши, пожалуйста, email в формате example@mail.com"
+        )
+        return WAITING_EMAIL
+
     context.user_data["email"] = email
 
     await update.message.reply_text(
